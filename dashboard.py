@@ -1,4 +1,4 @@
-# dashboard.py — Portfolio Dashboard v8 FINAL
+# dashboard.py — Portfolio Dashboard v9
 # pip install streamlit plotly requests
 
 import streamlit as st
@@ -29,6 +29,22 @@ div[data-testid="stMetricValue"] { font-size:22px!important; color:white!importa
 
 @st.cache_data(ttl=60)
 def get_prices():
+    # 1. Binance — самый надёжный, без ключа
+    try:
+        btc = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=5).json()
+        eth = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT", timeout=5).json()
+        return float(btc["price"]), float(eth["price"]), "Binance"
+    except:
+        pass
+    # 2. Kraken — запасной
+    try:
+        r = requests.get("https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD", timeout=5).json()
+        btc_p = float(r["result"]["XXBTZUSD"]["c"][0])
+        eth_p = float(r["result"]["XETHZUSD"]["c"][0])
+        return btc_p, eth_p, "Kraken"
+    except:
+        pass
+    # 3. CoinGecko — медленный, лимиты
     try:
         r = requests.get(
             "https://api.coingecko.com/api/v3/simple/price",
@@ -36,9 +52,9 @@ def get_prices():
             timeout=8
         )
         d = r.json()
-        return float(d["bitcoin"]["usd"]), float(d["ethereum"]["usd"])
+        return float(d["bitcoin"]["usd"]), float(d["ethereum"]["usd"]), "CoinGecko"
     except:
-        return 85000.0, 2000.0
+        return 0.0, 0.0, "❌ нет данных"
 
 @st.cache_data(ttl=300)
 def get_usd_rub():
@@ -82,8 +98,8 @@ with st.sidebar:
 
     st.divider()
     st.markdown("### 🏦 Вклад")
-    dep_borrowed    = st.number_input("Заёмные $ во вкладе",      min_value=0.0, value=qp("db",  0.0), step=0.01,       format="%.8f", help="Часть займа во вкладе (напр. $150 из ETH-займа)")
-    dep_personal    = st.number_input("Личные $ во вкладе",       min_value=0.0, value=qp("dp",  0.0), step=0.01,       format="%.8f", help="Ваши личные деньги во вкладе (напр. $250)")
+    dep_borrowed    = st.number_input("Заёмные $ во вкладе",      min_value=0.0, value=qp("db",  0.0), step=0.01,       format="%.8f", help="Часть займа во вкладе")
+    dep_personal    = st.number_input("Личные $ во вкладе",       min_value=0.0, value=qp("dp",  0.0), step=0.01,       format="%.8f", help="Ваши личные деньги во вкладе")
     dep_current     = st.number_input("Вклад сейчас + доход ($)", min_value=0.0, value=qp("dc",  0.0), step=0.00000001, format="%.8f", help="Текущая сумма вклада с доходом")
 
     st.divider()
@@ -105,7 +121,7 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-btc_price, eth_price = get_prices()
+btc_price, eth_price, price_source = get_prices()
 usd_rub = get_usd_rub()
 
 def calc_asset(start, bought, actual, loan_orig, loan_int, loan_income_input, price, extra_loan=0.0):
@@ -157,6 +173,7 @@ def sign(v): return "+" if v >= 0 else ""
 def clr(v):  return "normal" if v >= 0 else "inverse"
 def m(label, val, delta="", dc="normal"): st.metric(label, val, delta, delta_color=dc)
 def fmt(v, d=8): return f"{sign(v)}{v:,.{d}f}"
+
 st.markdown("## 📊 Portfolio Dashboard")
 st.markdown(
     f"<span style='color:#8b949e;font-size:13px'>"
@@ -164,7 +181,8 @@ st.markdown(
     f"<b style='color:#f0883e'>BTC &#36;{btc_price:,.0f}</b> &nbsp;|&nbsp; "
     f"<b style='color:#58a6ff'>ETH &#36;{eth_price:,.0f}</b> &nbsp;|&nbsp; "
     f"<b style='color:#3fb950'>{usd_rub:.2f} &#36;/&#36;</b> &nbsp;|&nbsp; "
-    f"Старт: {INVEST_DATE}</span>",
+    f"Старт: {INVEST_DATE} &nbsp;|&nbsp; "
+    f"<span style='color:#6e7681'>⚡{price_source}</span></span>",
     unsafe_allow_html=True
 )
 st.divider()
@@ -291,12 +309,12 @@ if total_all_usd > 0:
     with col_l:
         st.markdown('<p class="block-title">🪙 Распределение активов</p>', unsafe_allow_html=True)
         pie_l, pie_v, pie_c = [], [], []
-        if btc["my_usd"] > 0:       pie_l.append("BTC мой");    pie_v.append(btc["my_usd"]);          pie_c.append("#f0883e")
-        if btc_bought*btc_price > 0: pie_l.append("BTC кредит"); pie_v.append(btc_bought*btc_price);   pie_c.append("#f0883e55")
-        if eth["my_usd"] > 0:       pie_l.append("ETH мой");    pie_v.append(eth["my_usd"]);          pie_c.append("#58a6ff")
-        if eth_bought*eth_price > 0: pie_l.append("ETH кредит"); pie_v.append(eth_bought*eth_price);   pie_c.append("#58a6ff55")
-        if dep_current > 0:          pie_l.append("Вклад");      pie_v.append(dep_current);            pie_c.append("#3fb950")
-        if free_usd > 0:             pie_l.append("Free $");     pie_v.append(free_usd);               pie_c.append("#a371f7")
+        if btc["my_usd"] > 0:        pie_l.append("BTC мой");    pie_v.append(btc["my_usd"]);         pie_c.append("#f0883e")
+        if btc_bought*btc_price > 0: pie_l.append("BTC кредит"); pie_v.append(btc_bought*btc_price);  pie_c.append("#f0883e55")
+        if eth["my_usd"] > 0:        pie_l.append("ETH мой");    pie_v.append(eth["my_usd"]);         pie_c.append("#58a6ff")
+        if eth_bought*eth_price > 0: pie_l.append("ETH кредит"); pie_v.append(eth_bought*eth_price);  pie_c.append("#58a6ff55")
+        if dep_current > 0:          pie_l.append("Вклад");      pie_v.append(dep_current);           pie_c.append("#3fb950")
+        if free_usd > 0:             pie_l.append("Free $");     pie_v.append(free_usd);              pie_c.append("#a371f7")
         if pie_v:
             fig = go.Figure(go.Pie(labels=pie_l, values=pie_v, hole=0.42,
                 textinfo="label+percent", textfont={"size": 11},
@@ -325,4 +343,4 @@ if total_all_usd > 0:
 if total_all_usd == 0:
     st.info("👈  Введите данные в боковой панели, затем нажмите 💾 Сохранить в ссылку")
 
-st.caption(f"BTC/ETH цены — каждую минуту · ₽/$ — каждые 5 мин · Вложено: ${INVESTED_USD} / {INVESTED_RUB:,.0f} ₽ ({INVEST_DATE})")
+st.caption(f"BTC/ETH: {price_source} · ₽/$: exchangerate-api · Вложено: ${INVESTED_USD} / {INVESTED_RUB:,.0f} ₽ ({INVEST_DATE})")
