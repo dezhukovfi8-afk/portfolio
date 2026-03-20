@@ -59,9 +59,6 @@ def qp(key, default=0.0):
     except:
         return float(default)
 
-# ═══════════════════════════════════════════
-# БОКОВАЯ ПАНЕЛЬ
-# ═══════════════════════════════════════════
 with st.sidebar:
     st.markdown("## ✏️ Мои данные")
     st.divider()
@@ -72,7 +69,7 @@ with st.sidebar:
     btc_actual      = st.number_input("BTC факт (всего)",         min_value=0.0, value=qp("ba",  0.0), step=0.00000001, format="%.8f", help="Реальное текущее кол-во BTC")
     btc_loan_orig   = st.number_input("Займ под BTC ($)",         min_value=0.0, value=qp("blo", 0.0), step=0.01,       format="%.8f", help="Изначальная сумма займа")
     btc_loan_int    = st.number_input("Займ BTC + % ($)",         min_value=0.0, value=qp("bli", 0.0), step=0.00000001, format="%.8f", help="Текущий долг с процентами")
-    btc_loan_income = st.number_input("Займ BTC + доход ($)",     min_value=0.0, value=qp("bld", 0.0), step=0.00000001, format="%.8f", help="Текущая стоимость вложения заёмных. Напр: взяли $610, сейчас $650 → вводите 650")
+    btc_loan_income = st.number_input("Займ BTC + доход ($)",     min_value=0.0, value=qp("bld", 0.0), step=0.00000001, format="%.8f", help="Текущая стоимость вложения заёмных")
 
     st.divider()
     st.markdown("### ⟠ ETH")
@@ -81,13 +78,13 @@ with st.sidebar:
     eth_actual      = st.number_input("ETH факт (всего)",         min_value=0.0, value=qp("ea",  0.0), step=0.00000001, format="%.8f", help="Реальное текущее кол-во ETH")
     eth_loan_orig   = st.number_input("Займ под ETH ($)",         min_value=0.0, value=qp("elo", 0.0), step=0.01,       format="%.8f", help="Изначальная сумма займа")
     eth_loan_int    = st.number_input("Займ ETH + % ($)",         min_value=0.0, value=qp("eli", 0.0), step=0.00000001, format="%.8f", help="Текущий долг с процентами")
-    eth_loan_income = st.number_input("Займ ETH + доход ($)",     min_value=0.0, value=qp("eld", 0.0), step=0.00000001, format="%.8f", help="Текущая стоимость вложения заёмных средств")
+    eth_loan_income = st.number_input("Займ ETH + доход ($)",     min_value=0.0, value=qp("eld", 0.0), step=0.00000001, format="%.8f", help="Текущая стоимость вложения заёмных")
 
     st.divider()
     st.markdown("### 🏦 Вклад")
     dep_borrowed    = st.number_input("Заёмные $ во вкладе",      min_value=0.0, value=qp("db",  0.0), step=0.01,       format="%.8f", help="Часть займа во вкладе (напр. $150 из ETH-займа)")
     dep_personal    = st.number_input("Личные $ во вкладе",       min_value=0.0, value=qp("dp",  0.0), step=0.01,       format="%.8f", help="Ваши личные деньги во вкладе (напр. $250)")
-    dep_current     = st.number_input("Вклад сейчас + доход ($)", min_value=0.0, value=qp("dc",  0.0), step=0.00000001, format="%.8f", help="Текущая сумма вклада с накопленным доходом")
+    dep_current     = st.number_input("Вклад сейчас + доход ($)", min_value=0.0, value=qp("dc",  0.0), step=0.00000001, format="%.8f", help="Текущая сумма вклада с доходом")
 
     st.divider()
     st.markdown("### 💵 Свободные $")
@@ -108,9 +105,6 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-# ═══════════════════════════════════════════
-# РАСЧЁТЫ
-# ═══════════════════════════════════════════
 btc_price, eth_price = get_prices()
 usd_rub = get_usd_rub()
 
@@ -122,7 +116,6 @@ def calc_asset(start, bought, actual, loan_orig, loan_int, loan_income_input, pr
     income_rub        = income_usd * usd_rub
     interest_paid     = loan_int - loan_orig
     interest_pct      = (interest_paid / loan_orig * 100) if loan_orig > 0 else 0.0
-    # Если введён "займ+доход" — используем его, иначе считаем по рыночной цене монет
     loan_cur_val      = loan_income_input if loan_income_input > 0 else (bought * price)
     loan_profit_usd   = loan_cur_val - loan_int + extra_loan
     loan_profit_coins = loan_profit_usd / price if price > 0 else 0.0
@@ -139,7 +132,6 @@ def calc_asset(start, bought, actual, loan_orig, loan_int, loan_income_input, pr
         loan_roi_pct=loan_roi_pct, total_usd=total_usd, my_usd=my_usd, ltv=ltv,
     )
 
-# Вклад
 dep_invested        = dep_borrowed + dep_personal
 dep_income_total    = dep_current - dep_invested if dep_current > 0 else 0.0
 dep_ratio_borrow    = (dep_borrowed / dep_invested) if dep_invested > 0 else 0.0
@@ -148,12 +140,11 @@ dep_income_borrow   = dep_income_total * dep_ratio_borrow
 dep_income_personal = dep_income_total * dep_ratio_personal
 dep_income_pct      = (dep_income_total / dep_invested * 100) if dep_invested > 0 else 0.0
 
-# Активы — в ETH доп. слагаемое: $150 тело + доход с них
 btc = calc_asset(btc_start, btc_bought, btc_actual, btc_loan_orig, btc_loan_int, btc_loan_income, btc_price)
 eth = calc_asset(eth_start, eth_bought, eth_actual, eth_loan_orig, eth_loan_int, eth_loan_income, eth_price,
                  extra_loan=dep_borrowed + dep_income_borrow)
 
-total_my_usd      = btc["my_usd"] + eth["my_usd"] + free_usd + dep_current
+total_my_usd      = btc["my_usd"] + eth["my_usd"] + free_usd + dep_personal + dep_income_personal
 total_all_usd     = btc["total_usd"] + eth["total_usd"] + free_usd + dep_current
 total_loan_profit = btc["loan_profit_usd"] + eth["loan_profit_usd"]
 total_income_usd  = btc["income_usd"] + eth["income_usd"]
@@ -166,23 +157,18 @@ def sign(v): return "+" if v >= 0 else ""
 def clr(v):  return "normal" if v >= 0 else "inverse"
 def m(label, val, delta="", dc="normal"): st.metric(label, val, delta, delta_color=dc)
 def fmt(v, d=8): return f"{sign(v)}{v:,.{d}f}"
-
-# ═══════════════════════════════════════════
-# ЗАГОЛОВОК
-# ═══════════════════════════════════════════
 st.markdown("## 📊 Portfolio Dashboard")
 st.markdown(
     f"<span style='color:#8b949e;font-size:13px'>"
     f"⏰ {datetime.now().strftime('%H:%M:%S')} &nbsp;|&nbsp; "
-    f"<b style='color:#f0883e'>BTC ${btc_price:,.0f}</b> &nbsp;|&nbsp; "
-    f"<b style='color:#58a6ff'>ETH ${eth_price:,.0f}</b> &nbsp;|&nbsp; "
-    f"<b style='color:#3fb950'>{usd_rub:.2f} ₽/$</b> &nbsp;|&nbsp; "
+    f"<b style='color:#f0883e'>BTC &#36;{btc_price:,.0f}</b> &nbsp;|&nbsp; "
+    f"<b style='color:#58a6ff'>ETH &#36;{eth_price:,.0f}</b> &nbsp;|&nbsp; "
+    f"<b style='color:#3fb950'>{usd_rub:.2f} &#36;/&#36;</b> &nbsp;|&nbsp; "
     f"Старт: {INVEST_DATE}</span>",
     unsafe_allow_html=True
 )
 st.divider()
 
-# ═══ ИТОГ ПОРТФЕЛЯ ═══
 st.markdown('<p class="block-title">💼 Итог портфеля</p>', unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
 with c1: m("💼 Мои активы ($)",  f"${total_my_usd:,.2f}",        f"≈ {total_my_usd*usd_rub:,.0f} ₽")
@@ -191,7 +177,6 @@ with c3: m("🇷🇺 P&L в ₽",        f"{fmt(pnl_rub, 0)} ₽",          f"{f
 with c4: m("📊 Доход на займы",  f"{fmt(total_loan_profit, 2)}$", f"Рост актива: {fmt(total_income_usd, 2)}$", dc=clr(total_loan_profit))
 st.divider()
 
-# ═══ BTC — МОЙ ДОХОД ═══
 st.markdown('<p class="block-title">₿ BTC — Мой доход</p>', unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
 with c1: m("₿ BTC мой",       f"{btc['my_coins']:.8f} BTC",        f"Факт {btc_actual:.8f} − Кредит {btc_bought:.8f}")
@@ -199,7 +184,6 @@ with c2: m("📈 Доход в BTC",   f"{fmt(btc['income_coins'], 8)} BTC", f"�
 with c3: m("📊 Доход в %",     f"{fmt(btc['income_pct'], 4)}%",      f"= {fmt(btc['income_usd'], 2)}$", dc=clr(btc["income_pct"]))
 with c4: m("🇷🇺 Доход в ₽",    f"{fmt(btc['income_rub'], 0)} ₽",    f"курс {usd_rub:.2f}", dc=clr(btc["income_rub"]))
 
-# ═══ BTC — ЗАЙМ ═══
 st.markdown('<p class="block-title">₿ BTC — Займ</p>', unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
 with c1:
@@ -222,7 +206,6 @@ with c4:
       f"по курсу ${btc_price:,.0f}",
       dc=clr(btc["loan_profit_coins"]))
 
-# ═══ BTC — СТАТУС ═══
 st.markdown('<p class="block-title">₿ BTC — Статус</p>', unsafe_allow_html=True)
 c1, c2, c3, _ = st.columns(4)
 with c1: m("₿ Всего BTC в $", f"${btc['total_usd']:,.2f}", f"{btc_actual:.8f} × ${btc_price:,.0f}")
@@ -232,7 +215,6 @@ with c3: m("⚖️ LTV", f"{btc['ltv']:.2f}%",
            dc="normal" if btc["ltv"] < 60 else "inverse")
 st.divider()
 
-# ═══ ETH — МОЙ ДОХОД ═══
 st.markdown('<p class="block-title">⟠ ETH — Мой доход</p>', unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
 with c1: m("⟠ ETH мой",       f"{eth['my_coins']:.8f} ETH",        f"Факт {eth_actual:.8f} − Кредит {eth_bought:.8f}")
@@ -240,7 +222,6 @@ with c2: m("📈 Доход в ETH",   f"{fmt(eth['income_coins'], 8)} ETH", f"�
 with c3: m("📊 Доход в %",     f"{fmt(eth['income_pct'], 4)}%",      f"= {fmt(eth['income_usd'], 2)}$", dc=clr(eth["income_pct"]))
 with c4: m("🇷🇺 Доход в ₽",    f"{fmt(eth['income_rub'], 0)} ₽",    f"курс {usd_rub:.2f}", dc=clr(eth["income_rub"]))
 
-# ═══ ETH — ЗАЙМ ═══
 st.markdown('<p class="block-title">⟠ ETH — Займ (включая вклад)</p>', unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
 with c1:
@@ -265,7 +246,6 @@ with c4:
       f"по курсу ${eth_price:,.0f}",
       dc=clr(eth["loan_profit_coins"]))
 
-# ═══ ETH — СТАТУС ═══
 st.markdown('<p class="block-title">⟠ ETH — Статус</p>', unsafe_allow_html=True)
 c1, c2, c3, _ = st.columns(4)
 with c1: m("⟠ Всего ETH в $", f"${eth['total_usd']:,.2f}", f"{eth_actual:.8f} × ${eth_price:,.0f}")
@@ -275,7 +255,6 @@ with c3: m("⚖️ LTV", f"{eth['ltv']:.2f}%",
            dc="normal" if eth["ltv"] < 60 else "inverse")
 st.divider()
 
-# ═══ ВКЛАД ═══
 if dep_invested > 0:
     st.markdown('<p class="block-title">🏦 Вклад</p>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -300,7 +279,6 @@ if dep_invested > 0:
           f"заёмные ${dep_borrowed:,.2f} + личные ${dep_personal:,.2f}")
     st.divider()
 
-# ═══ СВОБОДНЫЕ $ ═══
 if free_usd > 0:
     st.markdown('<p class="block-title">💵 Свободные средства</p>', unsafe_allow_html=True)
     c1, c2, _ = st.columns(3)
@@ -308,7 +286,6 @@ if free_usd > 0:
     with c2: m("📊 Доля портфеля", f"{(free_usd/total_my_usd*100):.2f}%" if total_my_usd > 0 else "0%", "")
     st.divider()
 
-# ═══ ГРАФИКИ ═══
 if total_all_usd > 0:
     col_l, col_r = st.columns(2)
     with col_l:
